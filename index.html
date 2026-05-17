@@ -104,7 +104,6 @@ input[type="file"] {
 .canvas-stack canvas { display: block; width: 100%; height: auto; }
 .canvas-stack canvas#paint-canvas {
   position: absolute; top: 0; left: 0;
-  mix-blend-mode: color;
   pointer-events: none;
 }
 .canvas-stack canvas#touch-canvas {
@@ -187,6 +186,16 @@ input[type="file"] {
   width: 12px; height: 12px; background: var(--fg); border-radius: 0; cursor: pointer;
 }
 .tools input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: var(--fg); border: none; border-radius: 0; }
+.tool-btn {
+  font-family: var(--mono); font-size: 11px;
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+  cursor: pointer; letter-spacing: 0.04em;
+}
+.tool-btn.active {
+  background: var(--fg); color: var(--bg); border-color: var(--fg);
+}
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty { text-align: center; padding: 60px 20px; color: var(--dim); grid-column: 1/-1; }
 .hint { color: var(--dim); font-size: 11px; margin-top: 10px; line-height: 1.6; }
@@ -262,8 +271,11 @@ input[type="file"] {
   <div id="selector"></div>
 
   <div class="tools">
+    <label>pixel</label>
+    <input type="range" id="pixel-size" min="1" max="30" value="3">
     <label>brush</label>
     <input type="range" id="brush-size" min="20" max="180" value="80">
+    <button id="btn-eraser" class="tool-btn">eraser</button>
   </div>
 
   <div class="canvas-stack" id="canvas-stack">
@@ -394,7 +406,10 @@ let currentItem = null;
 let currentColor = '#888888';
 let currentLabel = '';
 let brushSize = 80;
+let pixelSize = 3;
+let eraser = false;
 let undoStack = [];
+let bwImageData = null;
 
 // mode-specific state (persists across photos)
 let wordSel = FEELINGS[0].word;
@@ -512,6 +527,7 @@ async function openColorScreen(idx) {
     a[i] = a[i+1] = a[i+2] = lum;
   }
   bwCtx.putImageData(d, 0, 0);
+  bwImageData = d;
 
   paintCtx.clearRect(0,0,w,h);
   undoStack = [];
@@ -697,6 +713,11 @@ function drawHueBar(canvas) {
 
 // ════════ BRUSH ════════
 $('brush-size').oninput = (e) => { brushSize = +e.target.value; };
+$('pixel-size').oninput = (e) => { pixelSize = +e.target.value; };
+$('btn-eraser').onclick = () => {
+  eraser = !eraser;
+  $('btn-eraser').classList.toggle('active', eraser);
+};
 
 function getPos(e) {
   const rect = touchCanvas.getBoundingClientRect();
@@ -706,24 +727,92 @@ function getPos(e) {
     y: (t.clientY - rect.top) * (touchCanvas.height / rect.height),
   };
 }
-function drawBrush(x, y) {
-  const r = brushSize;
-  const g = paintCtx.createRadialGradient(x, y, 0, x, y, r);
-  g.addColorStop(0, hexToRgba(currentColor, 0.18));
-  g.addColorStop(0.55, hexToRgba(currentColor, 0.07));
-  g.addColorStop(1, hexToRgba(currentColor, 0));
-  paintCtx.fillStyle = g;
-  paintCtx.beginPath();
-  paintCtx.arc(x, y, r, 0, Math.PI*2);
-  paintCtx.fill();
+
+function hexToHsl(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255;
+  const g = parseInt(hex.slice(3,5),16)/255;
+  const b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h, s, l = (max + min) / 2;
+  if (max === min) { h = 0; s = 0; }
+  else {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+    }
+    h /= 6;
+  }
+  return { h: h*360, s: s*100, l: l*100 };
+}
+
+function sampleBwLum(x, y, size) {
+  if (!bwImageData) return 128;
+  const w = bwImageData.width, h = bwImageData.height;
+  const data = bwImageData.data;
+  let sum = 0, count = 0;
+  const x1 = Math.max(0, x|0), y1 = Math.max(0, y|0);
+  const x2 = Math.min(w, (x|0) + size), y2 = Math.min(h, (y|0) + size);
+  for (let py = y1; py < y2; py++) {
+    for (let px = x1; px < x2; px++) {
+      sum += data[(py * w + px) * 4];
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : 128;
+}
+
+function paintCells(x, y) {
+  const cx = Math.floor(x / pixelSize) * pixelSize;
+  const cy = Math.floor(y / pixelSize) * pixelSize;
+  const cellR = Math.max(0, Math.round(brushSize / 2 / pixelSize));
+  if (eraser) {
+    paintCtx.globalCompositeOperation = 'destination-out';
+    paintCtx.fillStyle = '#000';
+    fillBrushCells(cx, cy, cellR);
+    paintCtx.globalCompositeOperation = 'source-over';
+    return;
+  }
+  const hsl = hexToHsl(currentColor);
+  if (cellR === 0) {
+    drawColoredCell(cx, cy, hsl);
+  } else {
+    for (let dy = -cellR; dy <= cellR; dy++) {
+      for (let dx = -cellR; dx <= cellR; dx++) {
+        if (dx*dx + dy*dy <= cellR*cellR) {
+          drawColoredCell(cx + dx*pixelSize, cy + dy*pixelSize, hsl);
+        }
+      }
+    }
+  }
+}
+function drawColoredCell(x, y, hsl) {
+  const lum = sampleBwLum(x, y, pixelSize);
+  paintCtx.fillStyle = hslToHex(hsl.h, hsl.s, lum * 100 / 255);
+  paintCtx.fillRect(x, y, pixelSize, pixelSize);
+}
+function fillBrushCells(cx, cy, cellR) {
+  if (cellR === 0) {
+    paintCtx.fillRect(cx, cy, pixelSize, pixelSize);
+    return;
+  }
+  for (let dy = -cellR; dy <= cellR; dy++) {
+    for (let dx = -cellR; dx <= cellR; dx++) {
+      if (dx*dx + dy*dy <= cellR*cellR) {
+        paintCtx.fillRect(cx + dx*pixelSize, cy + dy*pixelSize, pixelSize, pixelSize);
+      }
+    }
+  }
 }
 function drawLine(x0, y0, x1, y1) {
   const dist = Math.hypot(x1-x0, y1-y0);
-  const step = Math.max(2, brushSize / 10);
+  const step = Math.max(pixelSize, 2);
   const steps = Math.max(1, Math.floor(dist / step));
   for (let i=0; i<=steps; i++) {
     const t = i/steps;
-    drawBrush(x0 + (x1-x0)*t, y0 + (y1-y0)*t);
+    paintCells(x0 + (x1-x0)*t, y0 + (y1-y0)*t);
   }
 }
 
@@ -736,7 +825,7 @@ function start(e) {
   undoStack.push(paintCtx.getImageData(0,0,paintCanvas.width,paintCanvas.height));
   if (undoStack.length > 24) undoStack.shift();
   lastPos = getPos(e);
-  drawBrush(lastPos.x, lastPos.y);
+  paintCells(lastPos.x, lastPos.y);
 }
 function move(e) {
   if (!painting) return;
@@ -779,7 +868,6 @@ $('btn-finish').onclick = () => {
   out.width = bwCanvas.width; out.height = bwCanvas.height;
   const ctx = out.getContext('2d');
   ctx.drawImage(bwCanvas, 0, 0);
-  ctx.globalCompositeOperation = 'color';
   ctx.drawImage(paintCanvas, 0, 0);
   outCanvas = out;
   $('done-img').src = out.toDataURL('image/jpeg', 0.92);
