@@ -73,7 +73,16 @@ input[type="date"] {
   outline: none;
   width: 200px;
 }
-input[type="file"] { display: none; }
+input[type="file"] {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+#pick-label { cursor: pointer; }
 .thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .thumb {
   position: relative; aspect-ratio: 1; cursor: pointer; overflow: hidden;
@@ -220,8 +229,10 @@ input[type="file"] { display: none; }
   <input type="date" id="boundary-date">
   <p class="hint">この日付より前に撮影された写真の中から、9枚を無作為に選びます。</p>
   <div style="height: 28px;"></div>
-  <button id="btn-pick">choose photos →</button>
-  <input type="file" id="file-input" multiple accept="image/*">
+  <label class="btn" id="pick-label">
+    <input type="file" id="file-input" multiple accept="image/*">
+    choose photos →
+  </label>
   <p class="hint" style="margin-top: 20px;">※ Webの仕様上、写真ライブラリへの直接アクセスはできません。<br>
     多めに（30〜100枚など）まとめて選んでください。<br>EXIFの撮影日でフィルタします。</p>
 </section>
@@ -402,22 +413,28 @@ _def.setDate(_def.getDate() - 30);
 $('boundary-date').value = `${_def.getFullYear()}-${pad(_def.getMonth()+1)}-${pad(_def.getDate())}`;
 $('boundary-date').max = `${_today.getFullYear()}-${pad(_today.getMonth()+1)}-${pad(_today.getDate())}`;
 
-$('btn-pick').onclick = () => {
-  if (!$('boundary-date').value) { alert('日付を選んでください'); return; }
-  $('file-input').click();
-};
-
 $('file-input').onchange = async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
+  if (!$('boundary-date').value) {
+    alert('日付を選んでください');
+    $('file-input').value = '';
+    return;
+  }
+  try {
   showScreen('loading');
+  $('loading-msg').textContent = `reading ${files.length} files...`;
+  await new Promise(r => setTimeout(r, 16));
   const boundary = new Date($('boundary-date').value + 'T00:00:00');
   const items = [];
   for (let i=0; i<files.length; i++) {
     const f = files[i];
     let date = null;
     try {
-      const exif = await exifr.parse(f, { pick: ['DateTimeOriginal','CreateDate','DateTime'] });
+      const exif = await Promise.race([
+        exifr.parse(f, { pick: ['DateTimeOriginal','CreateDate','DateTime'] }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('exif-timeout')), 3000))
+      ]);
       date = exif?.DateTimeOriginal || exif?.CreateDate || exif?.DateTime || null;
     } catch {}
     if (!date && f.lastModified) date = new Date(f.lastModified);
@@ -443,6 +460,11 @@ $('file-input').onchange = async (e) => {
   }
   renderThumbs();
   showScreen('select');
+  } catch (err) {
+    console.error('processing failed:', err);
+    alert('処理エラー: ' + (err?.message || err));
+    showScreen('date');
+  }
 };
 
 function renderThumbs() {
