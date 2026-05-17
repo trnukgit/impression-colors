@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
-<title>印象の色 / impression colors</title>
+<title>impression colors / impression colors</title>
 <style>
 :root {
   --bg: #ffffff;
@@ -56,8 +56,13 @@ button, .btn {
   letter-spacing: 0.05em;
   transition: background 0.12s, color 0.12s;
   display: inline-block;
+  touch-action: manipulation;
 }
-button:hover { background: var(--fg); color: var(--bg); }
+@media (hover: hover) {
+  button:hover { background: var(--fg); color: var(--bg); }
+  .feeling:hover { background: var(--hi); }
+  .thumb:hover { opacity: 0.92; }
+}
 button:active { transform: translateY(1px); }
 button:disabled { opacity: 0.3; cursor: not-allowed; }
 button:disabled:hover { background: var(--bg); color: var(--fg); }
@@ -130,7 +135,7 @@ input[type="file"] {
 
 /* === SLIDERS UI === */
 .abstract-sliders { display: flex; flex-direction: column; gap: 16px; max-width: 360px; }
-.slider-row { display: grid; grid-template-columns: 28px 1fr 28px; align-items: center; gap: 14px; }
+.slider-row { display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; gap: 14px; }
 .slider-row label { font-size: 12px; color: var(--dim); text-align: center; letter-spacing: 0.02em; }
 .slider-row input[type="range"] {
   -webkit-appearance: none; appearance: none;
@@ -196,6 +201,10 @@ input[type="file"] {
 .tool-btn.active {
   background: var(--fg); color: var(--bg); border-color: var(--fg);
 }
+.tool-group {
+  display: flex; gap: 12px; align-items: center;
+  flex: 0 0 auto;
+}
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .empty { text-align: center; padding: 60px 20px; color: var(--dim); grid-column: 1/-1; }
 .hint { color: var(--dim); font-size: 11px; margin-top: 10px; line-height: 1.6; }
@@ -221,41 +230,41 @@ input[type="file"] {
 
 <!-- ────────── INTRO ────────── -->
 <section class="screen active" id="screen-intro">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">v0.2 / prototype</span></div>
-  <p class="lead">白黒写真に、後から色をのせる。</p>
-  <p class="lead">事実の色ではなく、覚えている色を。</p>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">v0.2 / prototype</span></div>
+  <p class="lead">Apply color to a black-and-white photo, after the fact.</p>
+  <p class="lead">Not the literal color — the color you remember.</p>
   <div style="height: 28px;"></div>
-  <p class="sub">青い空ではなく、その日の空の色を。<br>
-  赤いコーンではなく、その日の自分にとっての赤を。<br>
-  ──時間が経って記憶が印象に変わった頃に、色を置く。</p>
+  <p class="sub">Not the blue sky, but the color of that day's sky.<br>
+  Not the red cone, but your own red from that day.<br>
+  ── Place color once time has turned memory into impression.</p>
   <button id="btn-begin">begin →</button>
 </section>
 
 <!-- ────────── DATE ────────── -->
 <section class="screen" id="screen-date">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">01 / BOUNDARY</span></div>
-  <p class="prompt">いつより前の記憶？</p>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">01 / BOUNDARY</span></div>
+  <p class="prompt">Before when?</p>
   <input type="date" id="boundary-date">
-  <p class="hint">この日付より前に撮影された写真の中から、9枚を無作為に選びます。</p>
+  <p class="hint">9 photos will be picked at random from those taken before this date.</p>
   <div style="height: 28px;"></div>
   <label class="btn" id="pick-label">
     <input type="file" id="file-input" multiple accept="image/*">
     choose photos →
   </label>
-  <p class="hint" style="margin-top: 20px;">※ Webの仕様上、写真ライブラリへの直接アクセスはできません。<br>
-    多めに（30〜100枚など）まとめて選んでください。<br>EXIFの撮影日でフィルタします。</p>
+  <p class="hint" style="margin-top: 20px;">Note: web apps can't access the photo library directly.<br>
+    Select many photos at once (30–100 is good).<br>They'll be filtered by EXIF capture date.</p>
 </section>
 
 <!-- ────────── LOADING ────────── -->
 <section class="screen" id="screen-loading">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">processing</span></div>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">processing</span></div>
   <p><span class="spinner"></span><span id="loading-msg">reading exif...</span></p>
 </section>
 
 <!-- ────────── SELECT ────────── -->
 <section class="screen" id="screen-select">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">02 / SELECT</span></div>
-  <p class="prompt">どの記憶？</p>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">02 / SELECT</span></div>
+  <p class="prompt">Which memory?</p>
   <p class="hint" id="select-info" style="margin-top:-8px; margin-bottom:16px;"></p>
   <div class="thumbs" id="thumbs"></div>
   <div style="height: 24px;"></div>
@@ -264,18 +273,22 @@ input[type="file"] {
 
 <!-- ────────── COLOR ────────── -->
 <section class="screen" id="screen-color">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">03 / COLOR</span></div>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">03 / COLOR</span></div>
   <p class="prompt"><span id="color-date">----</span></p>
   <p class="mode-badge" id="mode-badge"></p>
 
   <div id="selector"></div>
 
   <div class="tools">
-    <label>pixel</label>
-    <input type="range" id="pixel-size" min="1" max="30" value="3">
-    <label>brush</label>
-    <input type="range" id="brush-size" min="20" max="180" value="80">
-    <button id="btn-eraser" class="tool-btn">eraser</button>
+    <div class="tool-group">
+      <label>pixel</label>
+      <input type="range" id="pixel-size" min="1" max="30" value="3">
+    </div>
+    <div class="tool-group">
+      <label>brush</label>
+      <input type="range" id="brush-size" min="20" max="180" value="80">
+      <button id="btn-eraser" class="tool-btn">eraser</button>
+    </div>
   </div>
 
   <div class="canvas-stack" id="canvas-stack">
@@ -293,15 +306,15 @@ input[type="file"] {
 
 <!-- ────────── DONE ────────── -->
 <section class="screen" id="screen-done">
-  <div class="head"><span class="title">印象の色</span><span class="crumb">04 / DONE</span></div>
-  <p class="prompt">完成。</p>
+  <div class="head"><span class="title">impression colors</span><span class="crumb">04 / DONE</span></div>
+  <p class="prompt">done.</p>
   <img class="done-img" id="done-img" alt="">
   <div class="actions">
     <button id="btn-share">share / save</button>
     <button id="btn-save">download</button>
     <button id="btn-restart">start over</button>
   </div>
-  <p class="hint" style="margin-top: 16px;">iOSなら share → 「画像を保存」で写真アプリに入ります。</p>
+  <p class="hint" style="margin-top: 16px;">On iOS: share → "Save Image" to add to Photos.</p>
 </section>
 
 <p class="foot">— impression colors / prototype —</p>
@@ -311,16 +324,16 @@ input[type="file"] {
 import exifr from 'https://esm.sh/exifr@7';
 
 // ════════════════════════════════════════════════════
-//  CONFIG  ── ここを変えるだけで色の選び方が切り替わる
+//  CONFIG  ── change just this constant to switch the color-selection method
 // ════════════════════════════════════════════════════
 //
-//   'words'   : 感覚の言葉から色 (記憶を言葉に翻訳)
-//   'sliders' : 温度 × 強さ の抽象スライダー (色は塗るまで見えない)
-//   'picker'  : 一般的なカラーピッカー (SV正方形 + 色相バー)
+//   'words'   : sensation words mapped to colors (memory translated into language)
+//   'sliders' : temperature × intensity abstract sliders (color stays hidden until you paint)
+//   'picker'  : standard color picker (SV square + hue bar)
 //
 const COLORING_MODE = 'picker';
 
-// Supabaseを使う場合のみ埋める
+// Fill in only if using Supabase.
 const SUPABASE_URL = '';
 const SUPABASE_ANON_KEY = '';
 
@@ -334,17 +347,17 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY) {
   } catch (e) { console.warn('supabase init failed', e); }
 }
 
-// ─── 言葉 → 色 のマッピング (wordsモード用) ───
+// ─── word → color mapping (for `words` mode) ───
 const FEELINGS = [
-  { word: 'ひんやり',   color: '#6a93b8' },
-  { word: 'あったかい', color: '#d49658' },
-  { word: 'しんと',     color: '#8d8aa3' },
-  { word: 'ふわっと',   color: '#d4a5b4' },
-  { word: 'ピリッと',   color: '#b13a36' },
-  { word: 'きらっと',   color: '#d4b14a' },
-  { word: 'どんより',   color: '#5a6b7a' },
-  { word: 'むっと',     color: '#7a7d4a' },
-  { word: 'ぼんやり',   color: '#9b8aa6' },
+  { word: 'chilly',   color: '#6a93b8' },
+  { word: 'warm', color: '#d49658' },
+  { word: 'hushed',     color: '#8d8aa3' },
+  { word: 'soft',   color: '#d4a5b4' },
+  { word: 'sharp',   color: '#b13a36' },
+  { word: 'bright',   color: '#d4b14a' },
+  { word: 'gloomy',   color: '#5a6b7a' },
+  { word: 'muggy',     color: '#7a7d4a' },
+  { word: 'hazy',   color: '#9b8aa6' },
 ];
 
 // ════════ UTIL ════════
@@ -432,7 +445,7 @@ $('file-input').onchange = async (e) => {
   const files = Array.from(e.target.files || []);
   if (!files.length) return;
   if (!$('boundary-date').value) {
-    alert('日付を選んでください');
+    alert('please select a date');
     $('file-input').value = '';
     return;
   }
@@ -468,8 +481,8 @@ $('file-input').onchange = async (e) => {
   $('file-input').value = '';
 
   if (!candidates.length) {
-    $('select-info').textContent = '該当する写真が0枚でした。';
-    $('thumbs').innerHTML = `<div class="empty">日付より前の写真が見つかりませんでした。<br>もう少し前の日付か、もっと多くの写真を選んでみてください。</div>`;
+    $('select-info').textContent = 'No matching photos.';
+    $('thumbs').innerHTML = `<div class="empty">No photos found before that date.<br>Try an earlier date, or select more photos.</div>`;
     showScreen('select');
     return;
   }
@@ -477,13 +490,13 @@ $('file-input').onchange = async (e) => {
   showScreen('select');
   } catch (err) {
     console.error('processing failed:', err);
-    alert('処理エラー: ' + (err?.message || err));
+    alert('processing error: ' + (err?.message || err));
     showScreen('date');
   }
 };
 
 function renderThumbs() {
-  $('select-info').textContent = `${candidates.length} / 9 photos · ${$('boundary-date').value} より前`;
+  $('select-info').textContent = `${candidates.length} / 9 photos · before ${$('boundary-date').value}`;
   const grid = $('thumbs');
   grid.innerHTML = '';
   candidates.forEach((item, idx) => {
@@ -563,7 +576,7 @@ function renderWordsUI(wrap) {
   });
   const inp = document.createElement('input');
   inp.type = 'text'; inp.className = 'feeling-custom';
-  inp.placeholder = '自分の言葉…'; inp.maxLength = 12;
+  inp.placeholder = 'your own word…'; inp.maxLength = 12;
   inp.onchange = () => {
     const w = inp.value.trim();
     if (!w) return;
@@ -577,7 +590,7 @@ function renderWordsUI(wrap) {
   container.appendChild(fe);
   const hint = document.createElement('p');
   hint.className = 'hint';
-  hint.textContent = '感覚の言葉を選んで、塗る。色は塗るまで見えない。';
+  hint.textContent = 'Pick a sensation word and paint. The color stays hidden until you paint.';
   container.appendChild(hint);
   wrap.appendChild(container);
   // sync color from current word
@@ -591,22 +604,22 @@ function renderSlidersUI(wrap) {
   wrap.innerHTML = `
     <div class="abstract-sliders">
       <div class="slider-row">
-        <label>冷</label>
+        <label>cool</label>
         <input type="range" id="sl-temp" min="0" max="100" value="${Math.round(sliderTemp*100)}">
-        <label>暖</label>
+        <label>warm</label>
       </div>
       <div class="slider-row">
-        <label>淡</label>
+        <label>faint</label>
         <input type="range" id="sl-int" min="0" max="100" value="${Math.round(sliderInt*100)}">
-        <label>濃</label>
+        <label>vivid</label>
       </div>
     </div>
-    <p class="hint">温度と強さだけで決める。色は塗るまで見えない。</p>
+    <p class="hint">Decided only by temperature and intensity. The color stays hidden until you paint.</p>
   `;
   const upd = () => {
     sliderTemp = $('sl-temp').value / 100;
     sliderInt = $('sl-int').value / 100;
-    // 冷 (240°) → 暖 (350°/-10°) を 鮮やかさ経由で
+    // cool (240°) → warm (350°/-10°), passing through vivid hues.
     const hue = (240 - sliderTemp * 250 + 360) % 360;
     const sat = 18 + sliderInt * 64;
     const lit = 72 - sliderInt * 27;
@@ -635,7 +648,7 @@ function renderPickerUI(wrap) {
       <div class="swatch" id="swatch"></div>
       <span class="swatch-hex" id="swatch-hex">#000000</span>
     </div>
-    <p class="hint">明度 × 彩度の正方形と、色相バー。</p>
+    <p class="hint">Brightness × saturation square, plus hue bar.</p>
   `;
   drawHueBar($('hue-canvas'));
   drawSVSquare($('sv-canvas'), pickerH);
@@ -890,9 +903,9 @@ $('btn-share').onclick = async () => {
   outCanvas.toBlob(async (blob) => {
     const file = new File([blob], `impression-${Date.now()}.jpg`, { type: 'image/jpeg' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      try { await navigator.share({ files: [file], title: '印象の色' }); } catch (e) {}
+      try { await navigator.share({ files: [file], title: 'impression colors' }); } catch (e) {}
     } else {
-      alert('この環境ではshareが使えません。downloadボタンをお試しください。');
+      alert('Share isn't available here. Try the download button instead.');
     }
   }, 'image/jpeg', 0.92);
 };
