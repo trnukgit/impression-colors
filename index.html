@@ -905,7 +905,7 @@ $('btn-share').onclick = async () => {
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try { await navigator.share({ files: [file], title: 'impression colors' }); } catch (e) {}
     } else {
-      alert('Share isn't available here. Try the download button instead.');
+      alert("Share isn't available here. Try the download button instead.");
     }
   }, 'image/jpeg', 0.92);
 };
